@@ -1,12 +1,14 @@
 from typing import Union
 
+import torch
+import torch.optim as optim
 from torch import Tensor
 from torch.nn import Module
 
 
 def create_adversarial_example(
     model: Module,
-    image_tensor: Tensor,
+    source_image: Tensor,
     target_label: Union[str, int],
     epsilon: float = 0.1,
     num_steps: int = 100,
@@ -30,15 +32,18 @@ def create_adversarial_example(
     Returns:
         Tensor: The adversarial example as a tensor.
     """
-    pass
+    model.eval()
 
+    # Create a copy of the image and make it requires gradient
+    adversarial_image = source_image.clone().detach().unsqueeze(0).requires_grad_(True)
+    optimizer = optim.Adam([adversarial_image], lr=0.01)
 
-model, labels = load_model_and_labels()
-image = load_image("imgs/ostrich.jpeg")
-indices = predict(model, image)
+    for i in range(num_steps):
+        outputs = model(adversarial_image)
+        loss = torch.nn.CrossEntropyLoss()(outputs, target_label)
+        loss += epsilon * torch.norm(adversarial_image - source_image)
 
-target_class = torch.tensor([1])  # label in position 1, goldfish
-adversarial_example = create_adversarial_example(model, image, target_class)
-y_hat = predict(model, adversarial_example)
-print(labels[y_hat.item()])
-display(to_image(adversarial_example))
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    return adversarial_image.requires_grad_(False).squeeze()

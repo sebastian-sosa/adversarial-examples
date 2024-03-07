@@ -1,30 +1,37 @@
+import json
 from typing import List, Tuple
 
 import torch
 from PIL import Image
 from torch import Tensor
 from torch.nn import Module
+from torchvision import models, transforms
+
+IMAGENET_LABELS_PATH = "imagenet-labels.json"
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
 
 
-def load_model_and_labels(model_name: str = "resnet18") -> Tuple[Module, List[str]]:
+def load_resnet_and_labels() -> Tuple[Module, List[str]]:
     """
-    Load a pretrained model and its corresponding labels.
-
-    Args:
-        model_name (str, optional): The name of the model to load. Defaults to "resnet18".
+    Load a pretrained ResNet and its corresponding labels.
 
     Returns:
         Tuple[Module, List[str]]: The loaded model and its labels.
     """
-    pass
+    model = models.resnet18(weights=models.resnet.ResNet18_Weights.IMAGENET1K_V1)
+    with open(IMAGENET_LABELS_PATH) as f:
+        labels = json.load(f)
+    model.eval()
+    return model, labels
 
 
 def load_image(
     image_path: str,
     resize_size: int = 256,
     crop_size: int = 224,
-    target_mean: List[float] = [0.485, 0.456, 0.406],
-    target_std: List[float] = [0.229, 0.224, 0.225],
+    target_mean: List[float] = IMAGENET_MEAN,
+    target_std: List[float] = IMAGENET_STD,
 ) -> Tensor:
     """
     Load an image as a Tensor and preprocess it.
@@ -39,10 +46,29 @@ def load_image(
     Returns:
         Tensor: The preprocessed image.
     """
-    pass
+    image = Image.open(image_path)
+    return preprocess_image(image)
 
 
-def predict(model: Module, image_tensor: Tensor) -> Tensor:
+def preprocess_image(
+    image: Image.Image,
+    resize_size: int = 256,
+    crop_size: int = 224,
+    target_mean: List[float] = [0.485, 0.456, 0.406],
+    target_std: List[float] = [0.229, 0.224, 0.225],
+) -> Tensor:
+    preprocess = transforms.Compose(
+        [
+            transforms.Resize(resize_size),
+            transforms.CenterCrop(crop_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=target_mean, std=target_std),
+        ]
+    )
+    return preprocess(image)
+
+
+def predict(model: Module, image: Tensor) -> Tensor:
     """
     Make a prediction using a model and an image.
 
@@ -53,22 +79,30 @@ def predict(model: Module, image_tensor: Tensor) -> Tensor:
     Returns:
         Tensor: The predicted class label.
     """
-    pass
+    with torch.no_grad():
+        output = model(image.unsqueeze(0))
+    probabilities = torch.nn.functional.softmax(output[0], dim=0)
+    _, indices = torch.topk(probabilities, 1)
+    return indices
 
 
-def display_tensor(image_tensor: Tensor) -> None:
-    """_summary_
+def unnormalize(tensor, mean=IMAGENET_MEAN, std=IMAGENET_STD):
+    tensor = tensor.clone()  # to avoid changes to the original tensor
+    for t, m, s in zip(tensor, mean, std):
+        t.mul_(s).add_(m)  # multiply by std and add the mean
+    return tensor
+
+
+def to_image(tensor: torch.Tensor) -> Image.Image:
+    """
+    Convert tensor to a PIL Image.
 
     Args:
-        image_tensor (Tensor): _description_
-    """
-    pass
+        tensor (Tensor): The tensor to convert.
 
-
-model, labels = load_model_and_labels()
+    Returns:
+        Tensor: The predicted class label.
     """
-    Display a tensor as an image.
-
-    Args:
-        image_tensor (Tensor): The tensor to display.
-    """
+    tensor = unnormalize(tensor)
+    tensor = tensor.clamp(0, 1)
+    return transforms.ToPILImage()(tensor)
