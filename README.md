@@ -2,6 +2,9 @@
 
 Create adversarial images that make a neural network misclassify them.
 
+![Adversarial Examples](imgs/readme-header.png)
+
+
 # Installation
 
 To install the library, clone the repository and install the needed dependencies:
@@ -18,9 +21,20 @@ import torch
 from adversarial.adversarial import create_adversarial_example
 from adversarial.utils import load_resnet_and_labels, load_image, predict, to_image
 
-adversarial_example = create_adversarial_example(model, image, target_class)
+TARGET_CLASS = <desired_target_class>
+IMG_PATH = <path_to_image>
+
+model, labels = load_resnet_and_labels()
+image = load_image(IMG_PATH)
+
+y_hat = predict(model, image)
+print(f'Original image predicted label: {labels[y_hat.item()]}')
+display(to_image(image))
+
+adversarial_example = create_adversarial_example(model, image, TARGET_CLASS)
 y_hat = predict(model, adversarial_example)
 
+print(f'Adversarial image predicted label: {labels[y_hat.item()]}')
 print(labels[y_hat.item()])
 display(to_image(adversarial_example))
 ```

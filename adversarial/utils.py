@@ -68,7 +68,7 @@ def preprocess_image(
     return preprocess(image)
 
 
-def predict(model: Module, image: Tensor) -> Tensor:
+def predict(model: Module, image: Tensor, top_k: int = 1) -> Tensor:
     """
     Make a prediction using a model and an image.
 
@@ -82,7 +82,7 @@ def predict(model: Module, image: Tensor) -> Tensor:
     with torch.no_grad():
         output = model(image.unsqueeze(0))
     probabilities = torch.nn.functional.softmax(output[0], dim=0)
-    _, indices = torch.topk(probabilities, 1)
+    _, indices = torch.topk(probabilities, top_k)
     return indices
 
 

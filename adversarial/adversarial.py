@@ -9,7 +9,7 @@ from torch.nn import Module
 def create_adversarial_example(
     model: Module,
     source_image: Tensor,
-    target_label: Union[str, int],
+    target_label: int,
     epsilon: float = 0.1,
     num_steps: int = 100,
     alpha: float = 0.01,
